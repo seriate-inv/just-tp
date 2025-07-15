@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Select Role</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <style>
+    body {
+      background: linear-gradient(to right, #74ebd5, #acb6e5);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      border-radius: 20px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: scale(1.05);
+    }
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .container-box {
+      display: flex;
+      gap: 30px;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container-box">
+    <!-- Admin Card -->
+    <div class="card text-center p-4" style="width: 18rem;">
+      <div class="card-body">
+        <h5 class="card-title">👨‍💼 Admin</h5>
+        <p class="card-text">Access attendance dashboard.</p>
+        <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#adminLoginModal">Go to Admin Panel</button>
+      </div>
+    </div>
+
+    <!-- Employee Card -->
+    <div class="card text-center p-4" style="width: 18rem;">
+      <div class="card-body">
+        <h5 class="card-title">🧑‍💻 Employee</h5>
+        <p class="card-text">Submit your attendance here.</p>
+        <a href="employee.html" class="btn btn-primary">Go to Employee Form</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Login Modal -->
+  <div class="modal fade" id="adminLoginModal" tabindex="-1" aria-labelledby="adminLoginModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form onsubmit="return verifyAdmin(event)">
+          <div class="modal-header">
+            <h5 class="modal-title">Admin Login</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label>Username:</label>
+              <input type="text" class="form-control" id="adminUser" required>
+            </div>
+            <div class="mb-3">
+              <label>Email:</label>
+              <input type="email" class="form-control" id="adminEmail" required>
+            </div>
+            <div class="mb-3">
+              <label>Password:</label>
+              <input type="password" class="form-control" id="adminPass" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-dark">Login</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function verifyAdmin(event) {
+      event.preventDefault();
+
+      const user = document.getElementById("adminUser").value.trim();
+      const email = document.getElementById("adminEmail").value.trim();
+      const pass = document.getElementById("adminPass").value;
+
+      if (
+        user === "seriate" &&
+        email === "seriate001archana@gmail.com" &&
+        pass === "archanaT@4725"
+      ) {
+        window.location.href = "admin.html";
+      } else {
+        alert("❌ Invalid credentials. Access denied.");
+      }
+    }
+  </script>
+
+</body>
+</html>
