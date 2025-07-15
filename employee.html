@@ -3,111 +3,120 @@
 <head>
   <meta charset="UTF-8">
   <title>Attendance Form</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
   <script>
-    let generatedCode = '';
+  let generatedCode = '';
 
-    function generateCode() {
-      generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-      document.getElementById('codeDisplay').innerText = `Your Code: ${generatedCode}`;
+  function generateCode() {
+    generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+    document.getElementById('codeDisplay').innerText = `Your Code: ${generatedCode}`;
+  }
+
+  async function getCurrentISTTime() {
+    try {
+      const resp = await fetch('https://worldtimeapi.org/api/timezone/Asia/Kolkata');
+      const data = await resp.json();
+      return new Date(data.datetime)
+               .toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    } catch (err) {
+      console.warn("Time API failed, using client time", err);
+      return new Date()
+               .toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     }
+  }
 
-    async function getCurrentISTTime() {
-      try {
-        const response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Kolkata');
-        const data = await response.json();
-        return new Date(data.datetime); // Accurate IST time
-      } catch (error) {
-        console.error("Error fetching server time, falling back to client time:", error);
-        return new Date(); // Fallback to client time
-      }
-    }
-
-    async function submitForm(event) {
-      event.preventDefault();
-
-      const name = document.getElementById("name").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const type = document.getElementById("type").value;
-      const enteredCode = document.getElementById("codeInput").value.trim();
-
-      if (enteredCode !== generatedCode) {
-        alert("❌ Invalid code entered!");
-        return;
-      }
-
+  function getGeoLocation() {
+    return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        alert("❌ Geolocation is not supported!");
-        return;
+        return reject(new Error('Geolocation not supported'));
       }
-
-      alert("📍 Submitting... Please allow location access.");
-
       navigator.geolocation.getCurrentPosition(
-        async function (position) {
-          const latitude = position.coords.latitude.toFixed(6);
-          const longitude = position.coords.longitude.toFixed(6);
-          const location = `${latitude}, ${longitude}`;
-          const dt = await getCurrentISTTime();
-
-          // Format date and time
-          const dateStr = dt.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
-          const timeStr = dt.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
-          const timestamp = dt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-
-          // Set the disabled fields
-          document.getElementById('dateField').value = dateStr;
-          document.getElementById('timeField').value = timeStr;
-
-          let rowData = {
-            Name: name,
-            Email: email,
-            Code: generatedCode,
-            Date: dateStr,
-            Time: timeStr,
-            "Entry Time": '',
-            "Exit Time": '',
-            "Hours worked": '',
-            "Entry Location": '',
-            "Exit Location": ''
-          };
-
-          if (type === 'entry') {
-            rowData["Entry Time"] = timestamp;
-            rowData["Entry Location"] = location;
-          } else if (type === 'exit') {
-            rowData["Exit Time"] = timestamp;
-            rowData["Exit Location"] = location;
-          }
-
-          fetch("https://sheetdb.io/api/v1/esy1h94w3sscv", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ data: rowData })
-          })
-          .then(res => res.json())
-          .then(response => {
-            console.log("✅ Server response:", response);
-            alert(`✅ Submitted successfully on ${timestamp}`);
-            document.getElementById("attendanceForm").reset();
-            document.getElementById("codeDisplay").innerText = "";
-            document.getElementById('dateField').value = "";
-            document.getElementById('timeField').value = "";
-          })
-          .catch(err => {
-            alert("❌ Submission failed. Please try again.");
-            console.error(err);
-          });
-        },
-        function (error) {
-          alert("❌ Location access denied or unavailable. Please enable it to submit attendance.");
-          console.error("Geolocation error:", error);
-        }
+        pos => resolve({
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6)
+        }),
+        err => reject(err),
+        { enableHighAccuracy: true, timeout: 10000 }
       );
+    });
+  }
+
+  async function getFallbackLocation() {
+    try {
+      const resp = await fetch('https://ipapi.co/json');
+      const data = await resp.json();
+      return {
+        latitude: parseFloat(data.latitude).toFixed(6),
+        longitude: parseFloat(data.longitude).toFixed(6)
+      };
+    } catch (err) {
+      console.error("IP-based location failed", err);
+      return { latitude: '0.000000', longitude: '0.000000' };
     }
-  </script>
+  }
+
+  async function getLocation() {
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      console.warn("Not secure context — skipping navigator.geolocation");
+      return getFallbackLocation();
+    }
+
+    try {
+      return await getGeoLocation();
+    } catch (err) {
+      console.warn("Navigator.geolocation failed:", err);
+      return getFallbackLocation();
+    }
+  }
+
+  async function submitForm(e) {
+    e.preventDefault();
+
+    const name        = document.getElementById("name").value.trim();
+    const email       = document.getElementById("email").value.trim();
+    const type        = document.getElementById("type").value;
+    const enteredCode = document.getElementById("codeInput").value.trim();
+
+    if (enteredCode !== generatedCode) {
+      return alert("❌ Invalid code entered!");
+    }
+
+    const timestamp = await getCurrentISTTime();
+    const { latitude, longitude } = await getLocation();
+    const location = `${latitude}, ${longitude}`;
+
+    const rowData = {
+      Name: name,
+      Email: email,
+      Code: generatedCode,
+      "Entry Time":    type === 'entry' ? timestamp : '',
+      "Exit Time":     type === 'exit'  ? timestamp : '',
+      "Hours worked":  '',
+      "Entry Location":type === 'entry' ? location : '',
+      "Exit Location": type === 'exit'  ? location : ''
+    };
+
+    fetch("https://sheetdb.io/api/v1/esy1h94w3sscv", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: rowData })
+    })
+    .then(res => res.json())
+    .then(() => {
+      alert("✅ Submitted successfully!");
+      document.getElementById("attendanceForm").reset();
+      document.getElementById("codeDisplay").innerText = "";
+    })
+    .catch(err => {
+      console.error(err);
+      alert("❌ Submission failed. Please try again.");
+    });
+  }
+</script>
+
 </head>
 <body class="bg-light">
   <div class="container mt-5">
@@ -128,23 +137,12 @@
           <option value="exit">Exit</option>
         </select>
       </div>
-
-      <!-- Date and Time Fields (Disabled) -->
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label>Date:</label>
-          <input type="text" class="form-control" id="dateField" disabled placeholder="Auto-fetched">
-        </div>
-        <div class="col-md-6 mb-3">
-          <label>Time:</label>
-          <input type="text" class="form-control" id="timeField" disabled placeholder="Auto-fetched">
-        </div>
-      </div>
-
-      <button type="button" class="btn btn-warning mb-3" onclick="generateCode()">Generate Code</button>
-      <div class="mb-2" id="codeDisplay" style="font-weight: bold;"></div>
+      <button type="button" class="btn btn-warning mb-3" onclick="generateCode()">
+        Generate Code
+      </button>
+      <div id="codeDisplay" class="mb-2 fw-bold"></div>
       <div class="mb-3">
-        <label>Enter 6-digit Code:</label>
+        <label>Enter 6‑digit Code:</label>
         <input type="text" class="form-control" id="codeInput" maxlength="6" required>
       </div>
       <button type="submit" class="btn btn-primary w-100">Submit</button>
